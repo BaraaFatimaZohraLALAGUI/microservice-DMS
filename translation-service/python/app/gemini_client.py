@@ -9,7 +9,7 @@ GEMINI_API_KEY='AIzaSyAlSmyOjBZdoDUB0pI9_mRrMH26vq9gv5E'
 
 class GeminiTranslator:
     def __init__(self):
-        self.client = genai.configure(api_key=GEMINI_API_KEY)
+        genai.configure(api_key=GEMINI_API_KEY)
     
     def translate_text(self, text: str, target_language: str, max_retries: int = 3) -> Optional[str]:
         delay = 1
@@ -21,10 +21,9 @@ class GeminiTranslator:
                 
                 Text to translate: {text}"""
                 
-                response = self.client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=[{"parts": [{"text": prompt}]}]
-                )
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                response = model.generate_content(prompt)
+
                 return self._clean_translation(response.text)
             except Exception as e:
                 if "429" in str(e):
@@ -33,9 +32,9 @@ class GeminiTranslator:
                     delay *= 2  
                 else:
                     print(f"Translation error: {str(e)}")
-                    return text
+                    return ''
         print(f"Failed to translate after {max_retries} attempts")
-        return text
+        return ''
     
     def _clean_translation(self, text: str) -> str:
             translation = text.split('\n')[0].strip()

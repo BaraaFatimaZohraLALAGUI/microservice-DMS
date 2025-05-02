@@ -45,6 +45,7 @@ services:
 
   # Spring Boot App
   springboot-app:
+    image: springboot-app
     build:
       context: ./springboot
       dockerfile: Dockerfile
