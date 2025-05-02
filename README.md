@@ -9,5 +9,4 @@ backend implementation: first deliverables, translation microservice for titel t
 - how to run:
   - python side: `uvicorn app.main:app --reload`
       - checking the translation using the python side: `curl.exe -X POST http://localhost:8000/translate/{doc_id_test} -H "Content-Type: application/json" -d '{"text":"hello"}'`
-  - start services `docker-compose up -d`
-  - verify containers `docker-compose ps`
+
