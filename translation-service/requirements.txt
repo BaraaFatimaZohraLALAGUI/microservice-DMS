@@ -1,7 +1,0 @@
-fastapi>=0.103.1
-uvicorn>=0.23.2
-google-generativeai>=0.3.0
-requests>=2.31.0
-confluent-kafka>=2.2.0
-supabase>=1.0.3
-python-dotenv>=1.0.0
