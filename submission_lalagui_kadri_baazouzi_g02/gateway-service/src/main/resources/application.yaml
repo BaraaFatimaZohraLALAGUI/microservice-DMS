@@ -21,17 +21,16 @@ spring:
           # Route requests coming to the gateway at /auth/**
           predicates:
             - Path=/auth/**
-          # Forward them to the auth-service base URL (running on port 8081)
-          # The gateway automatically forwards the original path (/auth/login, /auth/token, etc.)
-          uri: http://localhost:8082
+          # Forward them to the auth-service
+          uri: http://auth-service:8082
           # No JWT filter applied here - handled by the global filter logic
         - id: document_service_route
-          uri: http://localhost:8081 # Your Document Service
+          uri: http://document-service:8080 # Document Service
           predicates:
             - Path=/api/v1/categories/**, /api/v1/departments/**, /api/v1/documents/**
         
         - id: storage_service_route
-          uri: http://localhost:8002 # Your Storage Service
+          uri: http://storage-service:8002 # Storage Service
           predicates:
             - Path=/api/v1/storage/**
           filters:

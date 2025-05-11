@@ -52,6 +52,22 @@ services:
         timeout: 20s
         retries: 3
 
+  # MinIO setup service to create bucket
+  minio-setup:
+    image: minio/mc
+    container_name: minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (mc config host add myminio http://minio:9000 minioadmin minioadmin) do echo '...waiting for minio' && sleep 1; done;
+      mc mb myminio/dms-documents;
+      mc admin policy set public myminio/dms-documents;
+      exit 0;
+      "
+    networks:
+      - dms-network
+
   postgres:
     image: postgres:15
     container_name: postgres
@@ -75,6 +91,8 @@ services:
       - "8082:8082"
     depends_on:
       - postgres
+    environment:
+      SERVER_PORT: 8082
     networks:
       - dms-network
 
@@ -85,6 +103,11 @@ services:
     container_name: gateway-service
     ports:
       - "8085:8085"
+    environment:
+      SERVER_PORT: 8085
+      SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8082
+      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://document-service:8080
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://storage-service:8002
     depends_on:
       - auth-service
       - document-service
@@ -107,6 +130,7 @@ services:
       MINIO_USE_SSL: "false"
     depends_on:
       - minio
+      - minio-setup
     networks:
       - dms-network
     
@@ -119,7 +143,7 @@ services:
       - postgres
       - kafka
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/document_service
       SPRING_DATASOURCE_USERNAME: postgres
