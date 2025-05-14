@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -12,5 +13,5 @@ import java.util.List;
 public class User {
     private String username;
     private String password; // This will store the ENCODED password
-    private List<String> roles; // Changed from List<?> to List<String>
+    private List<String> roles = new ArrayList<>(); // Initialize to avoid nulls
 }

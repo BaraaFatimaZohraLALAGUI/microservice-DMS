@@ -54,7 +54,14 @@ The Authentication Service manages user authentication, registration, and author
 ### Default Admin User
 The system creates a default admin user on startup:
 - Username: `admin`
-- Password: `admin`
+- Password: `adminpassword`
+
+### Enhanced User Management
+The Authentication Service now provides enhanced user management capabilities with extended profile information, including:
+- Personal information (name, email, phone)
+- Professional details (position, department, hire date)
+- User status management
+- Department assignment
 
 ### Key Endpoints
 
@@ -94,9 +101,40 @@ POST /auth/token
 
 ### Admin User Management
 ```
-POST /admin/users      # Create a user (admin only)
-PUT /admin/users/{username}   # Update a user (admin only)
-DELETE /admin/users/{username}  # Delete a user (admin only)
+GET /admin/users               # List all users with profile data (admin only)
+GET /admin/users/{username}    # Get a user with profile data (admin only)
+POST /admin/users              # Create a user with profile (admin only)
+PUT /admin/users/{username}    # Update a user with profile (admin only)
+DELETE /admin/users/{username} # Delete a user (admin only)
+```
+
+**Enhanced User Creation Example:**
+```json
+{
+  "username": "employee1",
+  "password": "securepass123",
+  "roles": ["ROLE_USER"],
+  "name": "John Smith",
+  "email": "john.smith@example.com",
+  "phone": "123-456-7890",
+  "position": "Software Engineer",
+  "department": "Engineering",
+  "status": "Active",
+  "address": "123 Main St, City",
+  "hireDate": "2023-01-15T00:00:00Z",
+  "employeeId": 1001
+}
+```
+
+**User Update Example:**
+```json
+{
+  "password": "newpassword",
+  "roles": ["ROLE_USER", "ROLE_MANAGER"],
+  "position": "Senior Software Engineer",
+  "department": "Engineering",
+  "status": "Active"
+}
 ```
 
 ## Document Service
@@ -285,8 +323,10 @@ Below is a comprehensive list of all available API endpoints, accessible through
 |--------|----------|-------------|------|
 | POST | /auth/signup | Register a new user | Public |
 | POST | /auth/token | Get an auth token | Public |
-| POST | /admin/users | Create a user | Admin |
-| PUT | /admin/users/{username} | Update a user | Admin |
+| GET | /admin/users | List all users with profile data | Admin |
+| GET | /admin/users/{username} | Get a user with profile data | Admin |
+| POST | /admin/users | Create a user with profile | Admin |
+| PUT | /admin/users/{username} | Update a user with profile | Admin |
 | DELETE | /admin/users/{username} | Delete a user | Admin |
 
 ### Document Management Endpoints

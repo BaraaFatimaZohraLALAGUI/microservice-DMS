@@ -48,9 +48,19 @@ public class UserService implements UserDetailsService {
         if (existing == null) {
             throw new RuntimeException("User not found: " + username);
         }
-        String encodedPassword = passwordEncoder.encode(rawPassword);
-        existing.setPassword(encodedPassword);
-        existing.setRoles(new ArrayList<>(roles));
+        // Only update password if a new one is provided
+        if (rawPassword != null) {
+            String encodedPassword = passwordEncoder.encode(rawPassword);
+            existing.setPassword(encodedPassword);
+        }
+        // Only update roles if new ones are provided and not null
+        if (roles != null) {
+            existing.setRoles(new ArrayList<>(roles));
+        }
+        // Make sure roles is never null
+        if (existing.getRoles() == null) {
+            existing.setRoles(new ArrayList<>());
+        }
         users.put(username, existing);
         return existing;
     }
@@ -63,6 +73,19 @@ public class UserService implements UserDetailsService {
         users.remove(username);
     }
 
+    // Method to get all users - required by AdminController
+    public List<User> getAllUsers() {
+        return new ArrayList<>(users.values());
+    }
+
+    // Method to get a user by username - required by AdminController
+    public User getUserByUsername(String username) {
+        User user = users.get(username);
+        if (user == null) {
+            throw new RuntimeException("User not found: " + username);
+        }
+        return user;
+    }
 
     public User findByUsername(String username) {
         return users.get(username);

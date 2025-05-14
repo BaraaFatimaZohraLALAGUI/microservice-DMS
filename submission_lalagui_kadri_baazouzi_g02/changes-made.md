@@ -49,6 +49,39 @@
    - The service still runs on port 8080 internally, but is accessible externally on port 8081
    - This resolves conflicts with other services that might be using port 8080 on the host machine
 
+5. **Translation Service Stability Improvements**
+   - Added a healthcheck to the translation-service in docker-compose.yml
+   - Added restart policy to automatically restart the service if it fails
+   - Added a root endpoint (/) to the FastAPI app for healthcheck
+   - Installed curl in the Dockerfile for healthcheck commands
+   - Enhanced error handling in the Kafka consumer to prevent fatal crashes
+   - Extended the start period in the healthcheck to give more time for initialization
+
+6. **Additional Translation Service Resilience**
+   - Completely redesigned error handling to make the service more resilient
+   - Added proper logging instead of print statements
+   - Made connections to Kafka and document-service optional
+   - Added retry mechanisms for document service communication
+   - Added connection testing with timeouts to prevent hanging during startup
+   - Changed restart policy from `on-failure` to `always` to ensure continuous operation
+   - Simplified service dependencies to prevent dependency cycles
+   - Added a new `/retry-connections` endpoint to manually trigger reconnections
+
+7. **Kafka Topic Creation**
+   - Added a kafka-setup service to create the required Kafka topics on startup
+   - Created the `document_events` topic that was causing connection errors
+   - Created the `document-translation-results` topic for translation results
+   - Made both document-service and translation-service depend on kafka-setup
+   - This prevents errors when services try to use Kafka topics that don't exist yet
+
+8. **PostgreSQL Database Setup**
+   - Added initialization script to create the `document_service` database
+   - Created a new folder `postgres-init` with SQL scripts for database initialization
+   - Added volume mount in docker-compose.yml to run initialization scripts
+   - Updated document-service configuration to use the local PostgreSQL instead of Supabase
+   - Fixed port inconsistency in document-service application.yaml
+   - Added JPA configuration environment variables to docker-compose.yml for document-service
+
 ## Documentation Created
 
 1. **Comprehensive API Documentation** (`documentation.md`)

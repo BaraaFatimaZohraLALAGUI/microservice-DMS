@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 import uuid
 from mimetypes import guess_type # For better content-type detection
 
@@ -38,28 +39,60 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# --- S3 Client Initialization (for MinIO) ---
+# --- S3 Client Initialization (for MinIO) with retry ---
+MAX_RETRIES = 5
+RETRY_DELAY = 5  # seconds
 s3_client = None
-if MINIO_ENDPOINT_URL and MINIO_ACCESS_KEY and MINIO_SECRET_KEY and MINIO_BUCKET_NAME:
-    try:
-        logger.info(f"Initializing S3 client for MinIO endpoint: {MINIO_ENDPOINT_URL}, SSL: {MINIO_USE_SSL}")
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=MINIO_ENDPOINT_URL,
-            aws_access_key_id=MINIO_ACCESS_KEY,
-            aws_secret_access_key=MINIO_SECRET_KEY,
-            config=Config(signature_version='s3v4'), # Often required for MinIO compatibility
-            use_ssl=MINIO_USE_SSL,
-            # region_name='us-east-1' # Typically not needed for MinIO unless configured
-        )
-        # Optional: Verify connection by listing buckets (requires ListAllMyBuckets permission)
-        # response = s3_client.list_buckets()
-        # logger.info("Successfully connected to MinIO. Available buckets: %s", [b['Name'] for b in response['Buckets']])
-        logger.info(f"S3 client initialized for MinIO. Target bucket: {MINIO_BUCKET_NAME}")
-    except Exception as e:
-        logger.error(f"Failed to initialize Boto3 S3 client for MinIO: {e}", exc_info=True)
-else:
-    logger.warning("MinIO environment variables (ENDPOINT_URL, ACCESS_KEY, SECRET_KEY, BUCKET_NAME) not fully configured.")
+
+def init_s3_client():
+    global s3_client
+    if MINIO_ENDPOINT_URL and MINIO_ACCESS_KEY and MINIO_SECRET_KEY and MINIO_BUCKET_NAME:
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                logger.info(f"Initializing S3 client for MinIO endpoint: {MINIO_ENDPOINT_URL}, SSL: {MINIO_USE_SSL} (Attempt {attempt}/{MAX_RETRIES})")
+                s3_client = boto3.client(
+                    's3',
+                    endpoint_url=MINIO_ENDPOINT_URL,
+                    aws_access_key_id=MINIO_ACCESS_KEY,
+                    aws_secret_access_key=MINIO_SECRET_KEY,
+                    config=Config(signature_version='s3v4'), # Often required for MinIO compatibility
+                    use_ssl=MINIO_USE_SSL,
+                    # region_name='us-east-1' # Typically not needed for MinIO unless configured
+                )
+                
+                # Verify connection by listing buckets
+                response = s3_client.list_buckets()
+                bucket_names = [b['Name'] for b in response['Buckets']]
+                logger.info(f"Successfully connected to MinIO. Available buckets: {bucket_names}")
+                
+                # Verify bucket exists
+                if MINIO_BUCKET_NAME in bucket_names:
+                    logger.info(f"Target bucket '{MINIO_BUCKET_NAME}' exists and is accessible.")
+                    return True
+                else:
+                    logger.warning(f"Target bucket '{MINIO_BUCKET_NAME}' not found. Available buckets: {bucket_names}")
+                    # Try creating the bucket if it doesn't exist
+                    try:
+                        s3_client.create_bucket(Bucket=MINIO_BUCKET_NAME)
+                        logger.info(f"Created bucket '{MINIO_BUCKET_NAME}'")
+                        return True
+                    except Exception as e:
+                        logger.error(f"Failed to create bucket '{MINIO_BUCKET_NAME}': {e}")
+            
+            except Exception as e:
+                logger.error(f"Failed to initialize Boto3 S3 client for MinIO (Attempt {attempt}/{MAX_RETRIES}): {e}")
+                if attempt < MAX_RETRIES:
+                    logger.info(f"Retrying in {RETRY_DELAY} seconds...")
+                    time.sleep(RETRY_DELAY)
+                else:
+                    logger.error("Max retries reached. Could not initialize S3 client.")
+                    return False
+    else:
+        logger.warning("MinIO environment variables (ENDPOINT_URL, ACCESS_KEY, SECRET_KEY, BUCKET_NAME) not fully configured.")
+        return False
+
+# Initialize S3 client with retry logic
+init_s3_client()
 
 # --- Helper Function ---
 def check_s3_client_configured():
@@ -188,7 +221,20 @@ async def get_presigned_download_url(s3_file_key: str):
 # --- Root Endpoint (Optional - for health check/info) ---
 @app.get("/", summary="Root Endpoint", description="Basic endpoint to check if the service is running.")
 async def read_root():
-    return {"message": "Storage Service (MinIO) is running."}
+    bucket_accessible = False
+    if s3_client:
+        try:
+            s3_client.head_bucket(Bucket=MINIO_BUCKET_NAME)
+            bucket_accessible = True
+        except:
+            pass
+            
+    return {
+        "message": "Storage Service (MinIO) is running.",
+        "minio_configured": s3_client is not None,
+        "bucket_accessible": bucket_accessible,
+        "bucket_name": MINIO_BUCKET_NAME
+    }
 
 
 # --- Run the Server (for local execution) ---
@@ -196,5 +242,5 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("Starting Storage Service (MinIO) locally with Uvicorn...")
     # Use port 8002 or another suitable port
-    # Pass main:app as string to enable reload correctly
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True) 
+    # Pass app.main:app as string to enable reload correctly
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8002, reload=True) 

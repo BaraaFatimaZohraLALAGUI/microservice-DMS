@@ -1,15 +1,14 @@
 server:
-  port: 8081 
+  port: 8080 
 
 spring:
   application:
     name: document-service
-  # PostgreSQL configuration for production
+  # PostgreSQL configuration for local Docker environment
   datasource:
-    # Use the connection details from your Supabase project settings
-    url: jdbc:postgresql://aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require
-    username: postgres.izqyadlnncoetxzmtjsz # Usually 'postgres'
-    password: P7ekIqrJTRxzkiGA # Use an environment variable for the password
+    url: jdbc:postgresql://postgres:5432/document_service
+    username: postgres
+    password: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -20,7 +19,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   kafka:
-    bootstrap-servers: localhost:9092 # Your Kafka broker address
+    bootstrap-servers: kafka:29092 # Updated to use Kafka container name
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer # Use JSON serializer

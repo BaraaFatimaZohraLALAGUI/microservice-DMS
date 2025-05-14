@@ -28,15 +28,25 @@ class KafkaHandler:
         
         try:
             while True:
-                msg = consumer.poll(1.0)
-                if msg is None:
+                try:
+                    msg = consumer.poll(1.0)
+                    if msg is None:
+                        continue
+                    if msg.error():
+                        print(f"Consumer error: {msg.error()}")
+                        continue
+                    
+                    try:
+                        data = json.loads(msg.value())
+                        callback(data)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding message: {e}")
+                    except Exception as e:
+                        print(f"Error processing message: {e}")
+                except Exception as e:
+                    print(f"Unexpected error in Kafka consumer loop: {e}")
+                    # Continue instead of breaking to make the consumer more resilient
                     continue
-                if msg.error():
-                    print(f"Consumer error: {msg.error()}")
-                    continue
-                
-                data = json.loads(msg.value())
-                callback(data)
         except KeyboardInterrupt:
             pass
         finally:
