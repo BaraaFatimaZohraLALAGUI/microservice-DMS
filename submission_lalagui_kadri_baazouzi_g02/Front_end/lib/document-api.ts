@@ -145,9 +145,16 @@ export const getDocuments = async (params: DocumentListParams): Promise<Document
       // Get auth header for API requests
       const headers = getAuthHeader();
 
+      // Define the endpoint - if department filter is specified, use department-specific endpoint
+      let endpoint = '/api/v1/documents';
+      if (params.folderId) {
+        // In our system, folderId is equivalent to departmentId on the backend
+        endpoint = `/api/v1/documents/department/${params.folderId}`;
+      }
+
       // Try the regular user endpoint first
       try {
-        const response = await fetch('/api/v1/documents', {
+        const response = await fetch(endpoint, {
           method: 'GET',
           headers: {
             ...headers,
@@ -157,12 +164,12 @@ export const getDocuments = async (params: DocumentListParams): Promise<Document
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Fetched documents from user API:', data);
+          console.log('Fetched documents from API:', data);
 
           // If we get an empty page (user has no department assignments), 
           // try the admin endpoint to see all documents
           if (Array.isArray(data) && data.length === 0) {
-            console.log('No documents found for user departments, trying admin endpoint');
+            console.log('No documents found, trying admin endpoint');
             try {
               const adminResponse = await fetch('/api/v1/documents/all', {
                 method: 'GET',
@@ -474,8 +481,14 @@ export const createDocument = async (document: {
             url: data.s3FileKey || document.s3FileKey,
           };
         } else {
-          console.warn('Failed to create document via API, falling back to mock data');
-          throw new Error('API request failed');
+          // Check if this might be a department access error
+          if (response.status === 403) {
+            console.error('Access denied: User does not have access to the selected department');
+            throw new Error('You do not have permission to create documents in this department');
+          } else {
+            console.warn('Failed to create document via API, falling back to mock data');
+            throw new Error('API request failed');
+          }
         }
       } catch (error) {
         console.warn('Error creating document:', error);

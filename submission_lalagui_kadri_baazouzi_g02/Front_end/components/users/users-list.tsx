@@ -49,8 +49,31 @@ export default function UsersList() {
     const fetchUsers = async () => {
       setLoading(true)
       try {
+        console.log("Fetching all users data...");
         const data = await getAllUsers()
-        setUsers(data)
+
+        // Log the user data to debug
+        console.log("Users data received:", data);
+
+        if (data && Array.isArray(data)) {
+          console.log(`Received ${data.length} users with fields:`,
+            data.length > 0 ? Object.keys(data[0]) : 'none');
+
+          // Make sure we process the data even if it's in an unexpected format
+          const processedUsers = data.map(user => {
+            // Ensure the roles field is always an array
+            const roles = user.roles || [];
+            return {
+              ...user,
+              roles: Array.isArray(roles) ? roles : [roles]
+            };
+          });
+
+          setUsers(processedUsers)
+        } else {
+          console.error("Invalid users data format:", data);
+          setError("Received invalid user data format");
+        }
       } catch (error) {
         console.error("Failed to fetch users:", error)
         setError(error instanceof Error ? error.message : 'Failed to load users')

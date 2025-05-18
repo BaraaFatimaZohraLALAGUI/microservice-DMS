@@ -4,6 +4,15 @@ export interface User {
   id?: string
   username: string
   roles: UserRole[]
+  name?: string
+  email?: string
+  phone?: string
+  position?: string
+  department?: string
+  status?: string
+  address?: string
+  hireDate?: Date
+  employeeId?: number
 }
 
 export interface AuthState {

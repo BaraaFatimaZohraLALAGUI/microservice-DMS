@@ -48,11 +48,19 @@ gateway:
       user-id: X-User-Id
       user-roles: X-User-Roles # Comma-separated roles, e.g., "ROLE_USER,ROLE_ADMIN"
 
+# Storage service configuration
+storage:
+  service:
+    url: http://storage-service:8002
+
 logging:
   level:
     root: INFO
     com.example.document_service: DEBUG # Note: Fixed package name
-    org.springframework.security: INFO
+    com.example.document_service.security: TRACE # More detailed logs for security package
+    com.example.document_service.service.UserDepartmentService: DEBUG # Track user department assignments
+    org.springframework.security: DEBUG # More detailed for Spring Security
+    org.springframework.web.filter: DEBUG # Track request filter chain
     org.hibernate.SQL: DEBUG # If show-sql is true
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE # To see bound parameters
 

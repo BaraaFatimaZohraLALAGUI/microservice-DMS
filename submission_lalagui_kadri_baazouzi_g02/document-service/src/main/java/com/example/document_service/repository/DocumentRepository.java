@@ -16,6 +16,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     // Use JOIN FETCH to avoid N+1 queries when accessing category/department names later
     @Query("SELECT d FROM Document d JOIN FETCH d.category JOIN FETCH d.department WHERE d.department.id IN :departmentIds")
     Page<Document> findByDepartmentIdIn(List<Long> departmentIds, Pageable pageable);
+    
+    // Find documents belonging to a specific department
+    @Query("SELECT d FROM Document d JOIN FETCH d.category JOIN FETCH d.department WHERE d.department.id = :departmentId")
+    Page<Document> findByDepartmentId(Long departmentId, Pageable pageable);
 
     // Optional: Find all (for admin)
     @Query("SELECT d FROM Document d JOIN FETCH d.category JOIN FETCH d.department")

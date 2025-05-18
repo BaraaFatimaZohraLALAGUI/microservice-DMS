@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Test</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        button { 
+            padding: 8px 16px; 
+            margin: 10px 0; 
+            cursor: pointer; 
+        }
+        #results { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-top: 20px; 
+            white-space: pre-wrap; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication Test</h1>
+    <div>
+        <label for="username">Username: </label>
+        <input type="text" id="username" value="admin">
+    </div>
+    <div>
+        <label for="password">Password: </label>
+        <input type="password" id="password" value="adminpassword">
+    </div>
+    <button id="testAbsolute">Test with Absolute URL</button>
+    <button id="testRelative">Test with Relative URL</button>
+    
+    <div id="results">Results will appear here...</div>
+
+    <script>
+        document.getElementById('testAbsolute').addEventListener('click', () => {
+            testAuth('http://localhost:8085/auth/token');
+        });
+        
+        document.getElementById('testRelative').addEventListener('click', () => {
+            testAuth('/auth/token');
+        });
+        
+        async function testAuth(url) {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.textContent = `Testing ${url} with ${username}:${password}...\n`;
+            
+            try {
+                // Base64 encode credentials
+                const auth = btoa(`${username}:${password}`);
+                
+                resultsDiv.textContent += `Sending request...\n`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                resultsDiv.textContent += `Response status: ${response.status}\n`;
+                
+                // Log headers
+                const headers = {};
+                response.headers.forEach((value, name) => {
+                    headers[name] = value;
+                });
+                resultsDiv.textContent += `Response headers: ${JSON.stringify(headers, null, 2)}\n`;
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    resultsDiv.textContent += `Error: ${errorText}\n`;
+                    return;
+                }
+                
+                const responseText = await response.text();
+                resultsDiv.textContent += `Raw response: ${responseText}\n`;
+                
+                if (responseText) {
+                    try {
+                        const data = JSON.parse(responseText);
+                        resultsDiv.textContent += `Parsed data: ${JSON.stringify(data, null, 2)}\n`;
+                    } catch (err) {
+                        resultsDiv.textContent += `Failed to parse as JSON: ${err.message}\n`;
+                    }
+                } else {
+                    resultsDiv.textContent += `Empty response received\n`;
+                }
+            } catch (error) {
+                resultsDiv.textContent += `Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html> 

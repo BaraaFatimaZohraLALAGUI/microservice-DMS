@@ -33,13 +33,23 @@ public class DocumentService {
 
     @Transactional
     public DocumentViewDto createDocument(DocumentCreateRequestDto dto, String ownerUserId) {
-        // FIX: Use the 'dto' instance to access its fields, not the class name
-        // statically
+        // Validate inputs
         log.info("Creating document '{}' for user {}", dto.titleEn(), ownerUserId);
 
         // FIX: Use the categoryId and departmentId from the incoming 'dto' instance
         Category category = categoryService.findCategoryById(dto.categoryId());
         Department department = departmentService.findDepartmentById(dto.departmentId());
+        
+        // Check if user is already assigned to the department
+        List<Long> userDepartmentIds = userDepartmentService.getUserDepartmentIds(ownerUserId);
+        
+        // Check if user has access to the specified department 
+        // (auto-assignment is removed for security)
+        if (!userDepartmentIds.contains(department.getId())) {
+            log.warn("User {} attempted to create document in department {} they don't have access to", 
+                ownerUserId, department.getId());
+            throw new AccessDeniedException("You do not have permission to create documents in this department");
+        }
 
         // Create and populate the Document entity
         Document document = new Document();
@@ -74,11 +84,22 @@ public class DocumentService {
         // their departments
         if (!userRoles.contains("ROLE_ADMIN")) {
             List<Long> accessibleDepartmentIds = userDepartmentService.getUserDepartmentIds(userId);
+            
+            if (accessibleDepartmentIds.isEmpty()) {
+                log.warn("User {} has no department assignments, cannot access any documents", userId);
+                throw new AccessDeniedException("User does not have any department assignments");
+            }
+            
             if (!accessibleDepartmentIds.contains(document.getDepartment().getId())) {
-                log.warn("Access denied for user {} to document {} in department {}",
-                        userId, id, document.getDepartment().getId());
+                log.warn("Access denied for user {} to document {} in department {}. User departments: {}",
+                        userId, id, document.getDepartment().getId(), accessibleDepartmentIds);
                 throw new AccessDeniedException("User does not have access to this document's department");
             }
+            
+            log.debug("Access granted for user {} to document {} in department {}", 
+                    userId, id, document.getDepartment().getId());
+        } else {
+            log.debug("Admin access granted for user {} to document {}", userId, id);
         }
 
         return mapToViewDto(document);
@@ -90,10 +111,13 @@ public class DocumentService {
         List<Long> departmentIds = userDepartmentService.getUserDepartmentIds(userId);
 
         if (departmentIds.isEmpty()) {
-            log.debug("User {} is not assigned to any departments.", userId);
-            return Page.empty(pageable); // Return empty page if user has no departments
+            log.info("User {} is not assigned to any departments. Returning empty document list.", userId);
+            // Instead of trying to auto-assign, just return empty results
+            // This is more secure - users should be explicitly assigned to departments
+            return Page.empty(pageable);
         }
 
+        log.debug("Fetching documents for user {} in departments: {}", userId, departmentIds);
         Page<Document> documentPage = documentRepository.findByDepartmentIdIn(departmentIds, pageable);
         log.debug("Found {} documents for user {} in departments {}", documentPage.getTotalElements(), userId,
                 departmentIds);
@@ -107,6 +131,26 @@ public class DocumentService {
         log.debug("Finding all documents with page request {}", pageable);
         // Ensure your repository method `findAllWithDetails` exists and is correct
         Page<Document> documentPage = documentRepository.findAllWithDetails(pageable);
+        return documentPage.map(this::mapToViewDto);
+    }
+
+    /**
+     * Finds all documents in a specific department
+     * @param departmentId The department ID to filter by
+     * @param pageable Pagination parameters
+     * @return Paged list of documents in the specified department
+     */
+    @Transactional(readOnly = true)
+    public Page<DocumentViewDto> findDocumentsByDepartment(Long departmentId, Pageable pageable) {
+        log.debug("Finding documents in department {} with page request {}", departmentId, pageable);
+        
+        // Check if department exists
+        departmentService.findDepartmentById(departmentId); // Will throw if not found
+        
+        // Find documents in this department
+        Page<Document> documentPage = documentRepository.findByDepartmentId(departmentId, pageable);
+        log.debug("Found {} documents in department {}", documentPage.getTotalElements(), departmentId);
+        
         return documentPage.map(this::mapToViewDto);
     }
 

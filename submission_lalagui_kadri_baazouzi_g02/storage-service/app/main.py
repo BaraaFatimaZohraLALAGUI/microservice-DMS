@@ -118,8 +118,9 @@ async def upload_file(file: UploadFile = File(..., description="The file to uplo
     # Generate a unique key (path) for the S3 object within the bucket
     file_extension = os.path.splitext(file.filename)[1].lower() if '.' in file.filename else ''
     unique_id = uuid.uuid4()
+    current_year = time.strftime("%Y") # Get current year for organization
     # Example: documents/c1f4e9e0-5e6a-4b8f-8e4e-1f2d9c8b7a0a.pdf
-    s3_file_key = f"documents/{unique_id}{file_extension}" 
+    s3_file_key = f"documents/{current_year}/{unique_id}{file_extension}" 
 
     # Determine content type
     content_type = file.content_type

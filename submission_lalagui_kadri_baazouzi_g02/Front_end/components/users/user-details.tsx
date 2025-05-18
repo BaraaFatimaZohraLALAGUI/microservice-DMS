@@ -43,18 +43,31 @@ export default function UserDetails({ userId, username }: UserDetailsProps) {
           return;
         }
 
-        const userData = await getUserByUsername(userIdentifier)
-        setUser(userData)
+        console.log(`Fetching user data for: ${userIdentifier}`);
+        const userData = await getUserByUsername(userIdentifier);
+
+        // Log the data for debugging
+        console.log("User data received:", userData);
+        console.log("User data fields:", Object.keys(userData));
+
+        // Ensure roles is always an array
+        if (userData && userData.roles) {
+          if (!Array.isArray(userData.roles)) {
+            userData.roles = [userData.roles];
+          }
+        }
+
+        setUser(userData);
       } catch (err) {
-        setError("Failed to load user details")
-        console.error(err)
+        console.error("Error fetching user details:", err);
+        setError("Failed to load user details");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchUser()
-  }, [userId, username])
+    fetchUser();
+  }, [userId, username]);
 
   const handleDelete = async () => {
     if (!user) return

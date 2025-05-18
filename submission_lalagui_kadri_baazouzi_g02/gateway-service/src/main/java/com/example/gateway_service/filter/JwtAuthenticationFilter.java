@@ -2,9 +2,11 @@ package com.example.gateway_service.filter;
 
 import com.example.gateway_service.config.JwtProperties;
 import com.example.gateway_service.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -25,6 +27,12 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
     private final JwtProperties jwtProperties;
+    
+    @Value("${app.auth.header.names.user-id}")
+    private String userIdHeaderName;
+    
+    @Value("${app.auth.header.names.user-roles}")
+    private String userRolesHeaderName;
 
     // Define paths that should bypass JWT validation
     private final List<String> excludedPaths = List.of(
@@ -65,16 +73,22 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         try {
             if (jwtUtil.validateToken(token)) {
                 log.debug("JWT validation successful for path: {}", path);
-                // Optional: Extract claims and add as headers to downstream request
-                // Claims claims = jwtUtil.extractAllClaims(token);
-                // ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                //     .header("X-User-Name", claims.getSubject())
-                //     .header("X-User-Roles", claims.get("roles").toString()) // Example
-                //     .build();
-                // return chain.filter(exchange.mutate().request(mutatedRequest).build());
-
-                // If not mutating request, just pass through
-                return chain.filter(exchange);
+                
+                // Extract claims and add as headers to downstream request
+                Claims claims = jwtUtil.extractAllClaims(token);
+                String username = claims.getSubject();
+                String roles = claims.get("roles", List.class).toString();
+                
+                log.debug("Adding user headers - Username: {}, Roles: {}", username, roles);
+                
+                // Create a new request with the additional headers
+                ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                    .header(userIdHeaderName, username)
+                    .header(userRolesHeaderName, roles.replace("[", "").replace("]", "").replace(" ", ""))
+                    .build();
+                
+                // Pass the mutated request to the next filter
+                return chain.filter(exchange.mutate().request(mutatedRequest).build());
             } else {
                 // This case might not be strictly necessary if validateToken throws exceptions
                 log.error("JWT validation returned false unexpectedly for path: {}", path);

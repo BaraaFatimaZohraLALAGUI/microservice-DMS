@@ -123,6 +123,9 @@ export const login = async (credentials: LoginCredentials): Promise<User> => {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userInfo))
     Cookies.set(CURRENT_USER_KEY, JSON.stringify(userInfo), COOKIE_OPTIONS)
 
+    // Debug what we're storing
+    console.log('Storing user info with profile data:', JSON.stringify(userInfo, null, 2));
+
     return userInfo
   } catch (error) {
     console.error('Login error:', error)
@@ -134,20 +137,89 @@ export const login = async (credentials: LoginCredentials): Promise<User> => {
  * Get user info from token
  */
 const getUserInfo = async (token: string): Promise<User> => {
-  // In a real implementation, you would decode the JWT token or make an API call
-  // to get the user's info. For now, we'll extract basic info from the token.
-
-  // Decode JWT payload (middle part of the token)
   try {
+    // First, decode basic token info
     const payload = token.split('.')[1]
     const decodedPayload = JSON.parse(atob(payload))
 
-    return {
-      username: decodedPayload.sub || 'unknown',
-      roles: decodedPayload.roles || ['ROLE_USER']
+    const username = decodedPayload.sub || 'unknown'
+    const roles = decodedPayload.roles || ['ROLE_USER']
+
+    // Create basic user info with minimal data from token
+    const basicUser = {
+      username,
+      roles,
     }
+
+    console.log(`Fetching complete profile for user ${username}`);
+
+    // Try multiple URLs with the same pattern as other endpoints
+    // IMPORTANT: Try the /auth/me endpoint first which should return the current user's complete profile
+    const urls = [
+      'http://localhost:8082/auth/me',            // Direct to auth service
+      'http://localhost:8085/auth/me',            // Gateway
+      '/auth/me',                                 // Gateway (relative)
+      `/admin/users/${username}`,                 // Direct admin endpoint
+      `/api/admin/users/${username}`              // API admin endpoint
+    ];
+
+    let response = null;
+    let lastError = null;
+
+    // Try each URL until one works
+    for (const url of urls) {
+      try {
+        console.log('Trying profile URL:', url);
+
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          // Include credentials to send cookies
+          credentials: 'include',
+        });
+
+        console.log('Response from', url, '- status:', response.status);
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
+        // If successful, break out of the loop
+        if (response.ok && responseText) {
+          // Parse the response JSON
+          try {
+            const profileData = JSON.parse(responseText);
+            console.log('User profile fetched:', profileData);
+
+            // Make sure we have roles from the token (API might not return them)
+            if (!profileData.roles || profileData.roles.length === 0) {
+              profileData.roles = roles;
+            }
+
+            // Return the complete profile data
+            return profileData;
+          } catch (parseError) {
+            console.error('Error parsing profile response:', parseError);
+            // Try next URL if we can't parse this response
+          }
+        } else {
+          console.error(`Failed with status ${response.status}: ${responseText}`);
+          lastError = new Error(`Failed with status ${response.status}: ${responseText}`);
+        }
+      } catch (err) {
+        console.error('Fetch error for', url, ':', err);
+        lastError = err;
+      }
+    }
+
+    console.warn(`Failed to fetch profile for ${username}. Error: ${lastError?.message}`);
+    console.warn(`Using basic user info from token instead.`);
+
+    // If we couldn't get the profile info, just return basic user info from the token
+    return basicUser;
   } catch (error) {
-    console.error('Error decoding token:', error)
+    console.error('Error getting user info:', error)
     throw new Error('Failed to get user information')
   }
 }

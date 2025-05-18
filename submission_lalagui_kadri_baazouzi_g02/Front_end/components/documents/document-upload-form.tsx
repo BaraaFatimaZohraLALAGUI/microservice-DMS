@@ -90,6 +90,11 @@ export default function DocumentUploadForm() {
         setFolders(fetchedFolders)
         setLoadingFolders(false)
 
+        // Show warning if user has no department assignments
+        if (fetchedFolders.length === 0) {
+          setError("You don't have any department assignments. Please contact an administrator to get access to upload documents.")
+        }
+
         // Load categories
         setLoadingCategories(true)
         const fetchedCategories = await getCategories()
@@ -127,6 +132,15 @@ export default function DocumentUploadForm() {
     if (files.length === 0) {
       setError("Please select at least one file to upload")
       return
+    }
+
+    // Make sure departmentId is a valid selection the user has access to
+    if (data.folderId) {
+      const selectedFolder = folders.find(f => f.id === data.folderId);
+      if (!selectedFolder) {
+        setError("The selected department doesn't exist or you don't have access to it")
+        return;
+      }
     }
 
     setUploading(true)
@@ -192,7 +206,13 @@ export default function DocumentUploadForm() {
 
     } catch (err) {
       console.error("Error uploading documents:", err)
-      setError("Failed to upload documents. Please try again.")
+
+      // Check if this is a department access error
+      if (err instanceof Error && err.message.includes("permission") && err.message.includes("department")) {
+        setError("You don't have permission to upload documents to the selected department. Please choose a different department.");
+      } else {
+        setError("Failed to upload documents. Please try again.");
+      }
     } finally {
       setUploading(false)
     }
@@ -335,6 +355,10 @@ export default function DocumentUploadForm() {
                       {!loadingFolders && buildFolderOptions(folders)}
                     </SelectContent>
                   </Select>
+                  <FormDescription>
+                    Documents can only be uploaded to departments you have access to.
+                    Other users will only see documents from their assigned departments.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

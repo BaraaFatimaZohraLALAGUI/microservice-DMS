@@ -69,6 +69,7 @@ export function DocumentsList({ initialParams, hideFilters = false }: DocumentsL
   const [totalDocuments, setTotalDocuments] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [error, setError] = useState<string | null>(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(
@@ -173,7 +174,16 @@ export function DocumentsList({ initialParams, hideFilters = false }: DocumentsL
         setTotalPages(1) // No pagination in the backend API
       } catch (error) {
         console.error("Failed to fetch documents:", error)
-        setDocuments([])
+
+        // Check if this is a permission error (403)
+        if (error instanceof Error && error.message.includes("403")) {
+          // Set an empty list but with a message that can be displayed
+          setDocuments([])
+          setError("You don't have permission to access documents in this folder/department")
+        } else {
+          setDocuments([])
+        }
+
         setTotalDocuments(0)
         setTotalPages(0)
       } finally {
@@ -594,7 +604,11 @@ export function DocumentsList({ initialParams, hideFilters = false }: DocumentsL
                 ) : documents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-16 text-center">
-                      No documents found.
+                      {error ? (
+                        <div className="text-destructive">{error}</div>
+                      ) : (
+                        "No documents found."
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -693,7 +707,13 @@ export function DocumentsList({ initialParams, hideFilters = false }: DocumentsL
                 <div key={i} className="h-[200px] rounded-lg bg-muted animate-pulse"></div>
               ))
             ) : documents.length === 0 ? (
-              <div className="col-span-full text-center py-8">No documents found.</div>
+              <div className="col-span-full text-center py-8">
+                {error ? (
+                  <div className="text-destructive">{error}</div>
+                ) : (
+                  "No documents found."
+                )}
+              </div>
             ) : (
               documents.map((document) => (
                 <div key={document.id} className="border rounded-lg overflow-hidden flex flex-col">

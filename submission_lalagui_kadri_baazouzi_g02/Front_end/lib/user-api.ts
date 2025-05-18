@@ -55,26 +55,63 @@ export async function getAllUsers(): Promise<User[]> {
     try {
         console.log('Fetching all users');
 
-        const response = await fetch(`${API_BASE_URL}/admin/users`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                ...getAuthHeader()
-            }
-        });
+        // Direct URL first, then try gateway URLs
+        const urls = [
+            'http://localhost:8082/admin/users',  // Direct to auth service
+            'http://localhost:8085/admin/users',  // Gateway direct 
+            `/admin/users`,                       // Gateway relative
+            `${API_BASE_URL}/admin/users`         // API proxy URL
+        ];
 
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => 'No error details');
-            console.error(`Failed to fetch users: ${response.status}`, errorText);
-            throw new Error(`Failed to fetch users: ${response.status}`);
+        let response = null;
+        let lastError = null;
+
+        // Try each URL until one works
+        for (const url of urls) {
+            try {
+                console.log('Trying URL for getAllUsers:', url);
+
+                response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    },
+                    credentials: 'include' // Include credentials
+                });
+
+                console.log('Response from', url, '- status:', response.status);
+
+                // Log full response text
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+
+                // If empty response, continue to next URL
+                if (!responseText) {
+                    console.warn('Empty response, trying next URL');
+                    continue;
+                }
+
+                // Try to parse the response
+                try {
+                    const data = JSON.parse(responseText);
+                    console.log('Parsed data:', data);
+                    return data;
+                } catch (parseError) {
+                    console.error('Error parsing response:', parseError);
+                    // Continue to next URL if parse fails
+                }
+            } catch (err) {
+                console.error('Fetch error for', url, ':', err);
+                lastError = err;
+            }
         }
 
-        const data = await response.json();
-        console.log('Users fetched:', data);
-        return data;
+        // If we get here, all URLs failed
+        throw lastError || new Error('Failed to fetch users from any endpoint');
     } catch (error) {
         console.error('Error fetching users:', error);
-        throw new Error(error instanceof Error ? error.message : 'Failed to load users');
+        throw error; // Propagate the error
     }
 }
 
@@ -85,26 +122,62 @@ export async function getUserByUsername(username: string): Promise<User> {
     try {
         console.log(`Fetching user with username: ${username}`);
 
-        const response = await fetch(`${API_BASE_URL}/admin/users/${username}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                ...getAuthHeader()
-            }
-        });
+        // Direct URL first, then try gateway URLs
+        const urls = [
+            `http://localhost:8082/admin/users/${username}`,  // Direct to auth service
+            `http://localhost:8085/admin/users/${username}`,  // Gateway direct
+            `/admin/users/${username}`,                       // Gateway relative
+            `${API_BASE_URL}/admin/users/${username}`         // API proxy URL
+        ];
 
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => 'No error details');
-            console.error(`Failed to fetch user: ${response.status}`, errorText);
-            throw new Error(`Failed to fetch user: ${response.status}`);
+        let lastError = null;
+
+        // Try each URL until one works
+        for (const url of urls) {
+            try {
+                console.log('Trying URL for getUserByUsername:', url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    },
+                    credentials: 'include' // Include credentials
+                });
+
+                console.log('Response from', url, '- status:', response.status);
+
+                // Log full response text
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+
+                // If empty response, continue to next URL
+                if (!responseText) {
+                    console.warn('Empty response, trying next URL');
+                    continue;
+                }
+
+                // Try to parse the response
+                try {
+                    const data = JSON.parse(responseText);
+                    console.log('Parsed data:', data);
+                    return data;
+                } catch (parseError) {
+                    console.error('Error parsing response:', parseError);
+                    // Continue to next URL if parse fails
+                }
+            } catch (err) {
+                console.error('Fetch error for', url, ':', err);
+                lastError = err;
+            }
         }
 
-        const data = await response.json();
-        console.log('User fetched:', data);
-        return data;
+        // If we get here, all URLs failed
+        throw lastError || new Error(`Failed to fetch user ${username} from any endpoint`);
     } catch (error) {
         console.error(`Error fetching user with username ${username}:`, error);
-        throw new Error(error instanceof Error ? error.message : 'Failed to load user');
+        throw error; // Propagate the error
     }
 }
 
